@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: dev2-laravel
+    container_name: dev2-app-laravel
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/var/www/html
+    environment:
+      - APP_NAME=${APP_NAME:-cms}
+      - APP_ENV=${APP_ENV:-local}
+      - APP_KEY=base64:base64:bwn1peMmQRvwjZpFfbKz8Gns+FHKTD9bLg13sji8WGA= # Genera una clave con 'php artisan key:generate' y pégala aquí
+      - APP_DEBUG=${APP_DEBUG:-true}
+      - APP_URL=${APP_URL:-http://localhost:8000}
+      - DB_CONNECTION=${DB_CONNECTION:-mysql}
+      - DB_HOST=mysql
+      - DB_PORT=${DB_PORT:-3306}
+      - DB_DATABASE=${DB_DATABASE:-cmsdb}
+      - DB_USERNAME=${DB_USERNAME:-numero1}
+      - DB_PASSWORD=${DB_PASSWORD:-num3r01*}
+    depends_on:
+      - mysql
+
+  mysql:
+    image: mysql:8.0
+    container_name: db-mysql
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: num3r01*
+      MYSQL_DATABASE: cmsdb
+      MYSQL_USER: numero1
+      MYSQL_PASSWORD: num3r01*
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      timeout: 20s
+      retries: 3
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: phpmyadmin
+    ports:
+      - "8080:80"
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: numero1
+      PMA_PASSWORD: num3r01*
+    depends_on:
+      - mysql
+
+volumes:
+  mysql_data:
+    driver: local
