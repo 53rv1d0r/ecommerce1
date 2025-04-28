@@ -1,3 +1,10 @@
+# dev2
+Initial Dockerized Laravel 12 template with Mysql 8.0, phpmyadmin and PHP8.4 ready to start an application development / Plantilla inicial de laravel 12 dockerizado con mysql 8.0, phpmyadmin y PHP8.4 lista para empezar a desarrollar una aplicación.
+
+---
+
+## Laravel Framework Documentation
+
 <p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
 
 <p align="center">
