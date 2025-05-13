@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   app:
     build:
@@ -8,7 +6,9 @@ services:
     image: dev2-laravel
     container_name: dev2-app-laravel
     ports:
-      - "8000:8000"
+        # Cambio mapeo de puertos de 8000:8000 a 8081:8000 puerto del contenedor
+        # Puerto de máquina host 8000 ocupado por portainer, pasa a 8081
+      - "8081:8000" 
     volumes:
       - .:/var/www/html
     environment:
