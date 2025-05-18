@@ -10,84 +10,78 @@ services:
     #ports:
         # Puerto 8000 de máquina host ocupado por Portainer
         # Sirviendo aplicación en puerto 8081 de máquina host, puerto docker 80 (por defecto para Apache)
-      #- "8081:80" 
+      #- "8081:80"
     volumes:
       - .:/var/www/html
+    # --- AQUÍ ES DONDE LEEMOS DEL ARCHIVO .env ---
     environment:
-      - APP_NAME=${APP_NAME:-cms}
-      - APP_ENV=${APP_ENV:-local}
-      - APP_KEY=base64:E7on/AxwetJPR8ZWMJKx1QS0P+4J2vA4UzVwAcjGVvY= # Genera una clave con 'php artisan key:generate' y pégala aquí
-      - APP_DEBUG=${APP_DEBUG:-true}
-      - APP_URL=${APP_URL:-http://localhost:8081}  # Puerto de la URL de la aplicación
-      - DB_CONNECTION=${DB_CONNECTION:-mysql}
+      - APP_NAME=${APP_NAME} # Lee APP_NAME del .env
+      - APP_ENV=${APP_ENV}   # Lee APP_ENV del .env
+      # --- IMPORTANTE: AHORA LEE APP_KEY DEL .env ---
+      - APP_KEY=${APP_KEY}
+      - APP_DEBUG=${APP_DEBUG} # Lee APP_DEBUG del .env
+      - APP_URL=${APP_URL:-http://localhost:8081}  # Lee APP_URL del .env, usa valor por defecto si no está
+      - DB_CONNECTION=${DB_CONNECTION} # Lee DB_CONNECTION del .env
+      # Cuando usas Docker Compose, DB_HOST debe ser el nombre del servicio de la base de datos (mysql)
       - DB_HOST=mysql
-      - DB_PORT=${DB_PORT:-3306}
-      - DB_DATABASE=${DB_DATABASE:-cmsdb}
-      - DB_USERNAME=${DB_USERNAME:-numero1}
-      - DB_PASSWORD=${DB_PASSWORD:-num3r01*}
+      - DB_PORT=${DB_PORT}       # Lee DB_PORT del .env
+      - DB_DATABASE=${DB_DATABASE} # Lee DB_DATABASE del .env
+      - DB_USERNAME=${DB_USERNAME} # Lee DB_USERNAME del .env
+      # --- IMPORTANTE: AHORA LEE DB_PASSWORD DEL .env ---
+      - DB_PASSWORD=${DB_PASSWORD}
     depends_on:
       - mysql
 
-  # --- NUEVO SERVICIO: SERVIDOR WEB (Apache) ---
+  # --- SERVIDOR WEB (Apache) ---
   webserver:
-    # Usamos el nuevo Dockerfile para Apache
     build:
       context: .
-      dockerfile: webserver.Dockerfile # El Dockerfile que creaste para Apache
-    image: dev2-apache # Nombra la imagen de Apache
+      dockerfile: webserver.Dockerfile
+    image: dev2-apache
     container_name: dev2-webserver
-    # Exponemos el puerto 80 del contenedor Apache al puerto 8081 de la máquina host
     ports:
       - "8081:80"
     volumes:
-      # Montamos el mismo volumen de código que el servicio 'app'
       - .:/var/www/html
       # Si necesitas logs de Apache persistentes, podrías montarlos aquí
       # - apache_logs:/usr/local/apache2/logs/
-
-    # Este servicio depende del servicio 'app' (PHP-FPM)
-    # Docker Compose se asegurará de que 'app' esté corriendo antes de iniciar 'webserver'
-    environment: # <--- AÑADE ESTO
-      # Define la variable APACHE_LOG_DIR con la ruta deseada para los logs
-      # /usr/local/apache2/logs/ es la ruta por defecto en muchas imágenes Apache
-      - APACHE_LOG_DIR=/usr/local/apache2/logs
-
+    environment:
+      - APACHE_LOG_DIR=/usr/local/apache2/logs # Esta variable no es sensible, puede quedarse
     depends_on:
       - app
-    # Si necesitas que PHP-FPM esté "healthy" antes de que Apache intente conectarse
-    # dependerías también del healthcheck de 'app', pero por defecto basta con que el contenedor esté corriendo.
-    # depends_on:
-    #   app:
-    #     condition: service_healthy # Si defines un healthcheck en el servicio 'app'
 
   mysql:
     image: mysql:8.0
     container_name: db-mysql
     ports:
       - "3306:3306"
+    # --- AQUÍ TAMBIÉN LEEMOS DEL ARCHIVO .env ---
     environment:
-      MYSQL_ROOT_PASSWORD: num3r01*
-      MYSQL_DATABASE: cmsdb
-      MYSQL_USER: numero1
-      MYSQL_PASSWORD: num3r01*
+      # --- IMPORTANTE: AHORA LEE PASSWORD/USER DEL .env ---
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD} # Usamos la misma variable DB_PASSWORD del .env
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD} # Usamos la misma variable DB_PASSWORD del .env
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
+      # Asegúrate de que el comando healthcheck también use variables de entorno si necesita la contraseña
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "${DB_USERNAME}", "-p${DB_PASSWORD}"] # Modificado
       timeout: 20s
       retries: 3
-      start_period: 10s # Añadido start_period para esperar un poco antes del primer chequeo
+      start_period: 10s
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
     container_name: phpmyadmin
     ports:
       - "8080:80"
+    # --- Y AQUÍ TAMBIÉN ---
     environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      PMA_USER: numero1
-      PMA_PASSWORD: num3r01*
+      PMA_HOST: mysql # El nombre del servicio de la DB
+      PMA_PORT: ${DB_PORT}
+      PMA_USER: ${DB_USERNAME}
+      PMA_PASSWORD: ${DB_PASSWORD}
     depends_on:
       - mysql
 
