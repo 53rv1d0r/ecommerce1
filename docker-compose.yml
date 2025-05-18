@@ -4,19 +4,21 @@ services:
       context: .
       dockerfile: Dockerfile
     image: dev2-laravel
-    container_name: dev2-app-laravel
-    ports:
-        # Cambio mapeo de puertos de 8000:8000 a 8081:8000 puerto del contenedor
-        # Puerto de máquina host 8000 ocupado por portainer, pasa a 8081
-      - "8081:8000" 
+    container_name: dev2-app-laravel-fpm
+    # ¡No exponemos el puerto 80 aquí! PHP-FPM escucha en el puerto 9000 internamente.
+    # El servidor web se conectará a este contenedor en el puerto 9000.
+    #ports:
+        # Puerto 8000 de máquina host ocupado por Portainer
+        # Sirviendo aplicación en puerto 8081 de máquina host, puerto docker 80 (por defecto para Apache)
+      #- "8081:80" 
     volumes:
       - .:/var/www/html
     environment:
       - APP_NAME=${APP_NAME:-cms}
       - APP_ENV=${APP_ENV:-local}
-      - APP_KEY=base64:base64:bwn1peMmQRvwjZpFfbKz8Gns+FHKTD9bLg13sji8WGA= # Genera una clave con 'php artisan key:generate' y pégala aquí
+      - APP_KEY=base64:E7on/AxwetJPR8ZWMJKx1QS0P+4J2vA4UzVwAcjGVvY= # Genera una clave con 'php artisan key:generate' y pégala aquí
       - APP_DEBUG=${APP_DEBUG:-true}
-      - APP_URL=${APP_URL:-http://localhost:8000}
+      - APP_URL=${APP_URL:-http://localhost:8081}  # Puerto de la URL de la aplicación
       - DB_CONNECTION=${DB_CONNECTION:-mysql}
       - DB_HOST=mysql
       - DB_PORT=${DB_PORT:-3306}
@@ -25,6 +27,38 @@ services:
       - DB_PASSWORD=${DB_PASSWORD:-num3r01*}
     depends_on:
       - mysql
+
+  # --- NUEVO SERVICIO: SERVIDOR WEB (Apache) ---
+  webserver:
+    # Usamos el nuevo Dockerfile para Apache
+    build:
+      context: .
+      dockerfile: webserver.Dockerfile # El Dockerfile que creaste para Apache
+    image: dev2-apache # Nombra la imagen de Apache
+    container_name: dev2-webserver
+    # Exponemos el puerto 80 del contenedor Apache al puerto 8081 de la máquina host
+    ports:
+      - "8081:80"
+    volumes:
+      # Montamos el mismo volumen de código que el servicio 'app'
+      - .:/var/www/html
+      # Si necesitas logs de Apache persistentes, podrías montarlos aquí
+      # - apache_logs:/usr/local/apache2/logs/
+
+    # Este servicio depende del servicio 'app' (PHP-FPM)
+    # Docker Compose se asegurará de que 'app' esté corriendo antes de iniciar 'webserver'
+    environment: # <--- AÑADE ESTO
+      # Define la variable APACHE_LOG_DIR con la ruta deseada para los logs
+      # /usr/local/apache2/logs/ es la ruta por defecto en muchas imágenes Apache
+      - APACHE_LOG_DIR=/usr/local/apache2/logs
+
+    depends_on:
+      - app
+    # Si necesitas que PHP-FPM esté "healthy" antes de que Apache intente conectarse
+    # dependerías también del healthcheck de 'app', pero por defecto basta con que el contenedor esté corriendo.
+    # depends_on:
+    #   app:
+    #     condition: service_healthy # Si defines un healthcheck en el servicio 'app'
 
   mysql:
     image: mysql:8.0
@@ -42,6 +76,7 @@ services:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${MYSQL_ROOT_PASSWORD}"]
       timeout: 20s
       retries: 3
+      start_period: 10s # Añadido start_period para esperar un poco antes del primer chequeo
 
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:latest
@@ -59,3 +94,6 @@ services:
 volumes:
   mysql_data:
     driver: local
+  # Si descomentaste la línea de logs para persistencia, añade el volumen aquí:
+  # apache_logs:
+  #   driver: local
